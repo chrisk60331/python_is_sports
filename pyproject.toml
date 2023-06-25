@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "python_is_sports"
+version = "0.1.0"
+description = "Project description."
+authors = ["Your Name <your.email@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.spyproject.dependencies]
+sklearn = "0.24.2"
+spacy = "3.0.6"
+bs4 = "0.0.1"
+joblib = "1.0.1"

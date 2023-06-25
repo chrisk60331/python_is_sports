@@ -2,6 +2,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
+import joblib
 import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 import sys
@@ -10,7 +11,10 @@ import spacy
 import os
 import re
 
-
+TRAINED_DATA = os.environ.get("TRAININGDATA", 'training_data.json')
+SPORTS = 'sports'
+VECTORIZER = 'vectorizer.pkl'
+MODEL = 'model.pkl'
 def logisticregression(data):
     texts, labels = zip(*data)
     texts_train, texts_test, labels_train, labels_test = train_test_split(texts, labels, test_size=0.2, random_state=42)
@@ -19,33 +23,17 @@ def logisticregression(data):
     X_test = vectorizer.transform(texts_test)
     model = LogisticRegression()
     model.fit(X_train, labels_train)
-    predictions = model.predict(X_test)
-
+    joblib.dump(model, MODEL)
+    joblib.dump(vectorizer, VECTORIZER)
     return model, vectorizer
-
-def prepdata(data):
-    parsed = []
-    for title, desc in data:
-        soup = BeautifulSoup(desc, 'html.parser')
-        parsed.append(f"{title}: {soup.get_text()}")
-    return parsed
 
 def labeldata(data, label):
     return [(title[:100], label) for title in data]
 
-def parserss(file_name):
-    feed = ET.parse(file_name).getroot()
-    channels =  feed.findall('channel')
-    return [
-        (item.find("title").text,item.find("description").text)
-        for channel in channels
-        for item in channel.findall('item')
-    ]
-
 def predict_article(model, vectorizer, text):
     X = vectorizer.transform(text)
     prediction = model.predict(X)
-    return prediction
+    return prediction[0] == SPORTS
 
 
 def replace_useless(text, nlp):
@@ -62,11 +50,14 @@ def replace_useless(text, nlp):
 
 def get_data(file_name, label, nlp):
     data = []
-    for indx in range(0, 1000, 100):
+    for indx in range(0, 10000, 100):
+        data_file = f"{file_name}{indx}.json"
+        if not os.path.exists(data_file):
+            raise Exception(f"Data file {data_file} not found! Did you forget to run get_data.py?")
         new = labeldata(
             [
-                replace_useless(f"{x.get('title')} - {x.get('description')}", nlp)
-                for x in json.loads(open(f"{file_name}{indx}.json", 'r').read()).get('data')
+                replace_useless(f"{x.get('title')} - {x.get('description')}", nlp)[:150]
+                for x in json.loads(open(data_file, 'r').read()).get('data')
             ], label
         )
         data.extend(new)
@@ -81,17 +72,23 @@ def preprocess():
     data = sports + business
     open('training_data.json', 'w').write(json.dumps(data))
 
-if __name__ == '__main__':
 
-    if not os.path.exists('training_data.json'):
+def run_prediction(text):
+    if not os.path.exists(TRAINED_DATA):
         preprocess()
+    if not os.path.exists(MODEL) or not os.path.exists(VECTORIZER):
+        data =  json.loads(open(TRAINED_DATA).read())
+        model, vectorizer = logisticregression(data)
+    else:
+        model = joblib.load(MODEL)
+        vectorizer = joblib.load(VECTORIZER)
     try:
         nlp = spacy.load("en_core_web_sm")
-        data =  json.loads(open('training_data.json').read())
-        model, vectorizer = logisticregression(data)
-        text = [replace_useless(" ".join(sys.argv[1:]), nlp)]
-        print(text)
-        print(predict_article(model, vectorizer, text)[0])
+        text = [replace_useless((text), nlp)]
+        return predict_article(model, vectorizer, text)
     except Exception as e:
         print(e)
+
+if __name__ == '__main__':
+    print(run_prediction(" ".join(sys.argv[1:])))
 
