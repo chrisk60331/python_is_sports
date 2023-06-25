@@ -64,8 +64,7 @@ def get_data(file_name, label, nlp):
     return data
 
 
-def preprocess():
-    nlp = spacy.load("en_core_web_sm")
+def preprocess(nlp):
     business = get_data("business,-sports", "notsports", nlp)
     sports = get_data("sports,-business", "sports", nlp)
     print("sports: ", len(sports), "notsports: ", len(business))
@@ -74,16 +73,16 @@ def preprocess():
 
 
 def run_prediction(text):
-    if not os.path.exists(TRAINED_DATA):
-        preprocess()
+    nlp = spacy.load("en_core_web_sm")
     if not os.path.exists(MODEL) or not os.path.exists(VECTORIZER):
+        if not os.path.exists(TRAINED_DATA):
+            preprocess(nlp)
         data =  json.loads(open(TRAINED_DATA).read())
         model, vectorizer = logisticregression(data)
     else:
         model = joblib.load(MODEL)
         vectorizer = joblib.load(VECTORIZER)
     try:
-        nlp = spacy.load("en_core_web_sm")
         text = [replace_useless((text), nlp)]
         return predict_article(model, vectorizer, text)
     except Exception as e:

@@ -7,7 +7,7 @@ exec 3< "test_headlines"
 while IFS= read -r line <&3; do
   # Process the line
   echo "Processing line: $line"
-  pyenv exec python is_sports.py "$line"
+  pyenv exec python python_is_sports/is_sports.py "$line"
 done
 
 # Close the file descriptor
